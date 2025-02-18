@@ -8,7 +8,7 @@ export default defineConfig({
     lib: {
       entry: 'src/index.ts',
       name: 'EmlParseJs',
-      formats: ['cjs', 'es', 'iife', 'umd'],
+      formats: ['es'],
       fileName: (format, entryName) => {
         return `${entryName}.${format}.js`
       }

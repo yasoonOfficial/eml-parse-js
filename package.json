@@ -1,18 +1,15 @@
 {
-	"name": "eml-parse-js",
+	"name": "@yasoonofficial/eml-parse-js",
 	"version": "1.2.0-beta.0",
 	"description": "format EML file in browser env",
-	"main": "./dist/index.cjs.js",
+	"main": "./dist/index.es.js",
 	"module": "./dist/index.es.js",
-	"browser": "./dist/index.umd.js",
 	"typings": "./dist/index.d.ts",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"node": "./dist/index.cjs.js",
 			"import": "./dist/index.es.js",
-			"require": "./dist/index.cjs.js",
 			"default": "./dist/index.es.js"
 		}
 	},

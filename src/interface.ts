@@ -42,15 +42,11 @@ export interface ReadedEmlJson {
  * Attachment file
  */
 export interface Attachment {
-	name: string;
-	contentType: string;
-	inline: boolean;
-	data: string | Uint8Array;
-	data64: string;
-	filename?: string;
-	mimeType?: string;
-	id?: string;
-	cid?: string;
+	name?: string;
+	contentType?: string;
+	inline?: boolean;
+	size?: number;
+	contentId?: string;
 }
 
 /**

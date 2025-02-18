@@ -495,192 +495,6 @@ function completeBoundary(boundary: BoundaryRawData): BoundaryConvertedData | nu
 }
 
 /**
- * buid EML file by ReadedEmlJson or EML file content
- * @param {ReadedEmlJson} data
- * @param {BuildOptions | CallbackFn<string> | null} options
- * @param {CallbackFn<string>} callback
- */
-function build(
-	data: ReadedEmlJson | string,
-	options?: BuildOptions | CallbackFn<string> | null,
-	callback?: CallbackFn<string>
-): string | Error {
-	//Shift arguments
-	if (typeof options === 'function' && typeof callback === 'undefined') {
-		callback = options;
-		options = null;
-	}
-	let error: Error | string | undefined;
-	let eml = '';
-	const EOL = '\r\n'; //End-of-line
-
-	try {
-		if (!data) {
-			throw new Error('Argument "data" expected to be an object! or string');
-		}
-		if (typeof data === 'string') {
-			const readResult = read(data);
-			if (typeof readResult === 'string') {
-				throw new Error(readResult);
-			} else if (readResult instanceof Error) {
-				throw readResult;
-			} else {
-				data = readResult;
-			}
-		}
-
-		if (!data.headers) {
-			throw new Error('Argument "data" expected to be has headers');
-		}
-
-		if (typeof data.subject === 'string') {
-			data.headers['Subject'] = data.subject;
-		}
-
-		if (typeof data.from !== 'undefined') {
-			data.headers['From'] = toEmailAddress(data.from);
-		}
-
-		if (typeof data.to !== 'undefined') {
-			data.headers['To'] = toEmailAddress(data.to);
-		}
-
-		if (typeof data.cc !== 'undefined') {
-			data.headers['Cc'] = toEmailAddress(data.cc);
-		}
-
-		// if (!data.headers['To']) {
-		//   throw new Error('Missing "To" e-mail address!');
-		// }
-
-		const emlBoundary = getBoundary(data.headers['Content-Type'] || data.headers['Content-type'] || '');
-		let hasBoundary = false;
-		let boundary = createBoundary();
-		let multipartBoundary = '';
-		if (data.multipartAlternative) {
-			multipartBoundary = '' + (getBoundary(data.multipartAlternative['Content-Type']) || '');
-			hasBoundary = true;
-		}
-		if (emlBoundary) {
-			boundary = emlBoundary;
-			hasBoundary = true;
-		} else {
-			data.headers['Content-Type'] = data.headers['Content-type'] || 'multipart/mixed;' + EOL + 'boundary="' + boundary + '"';
-			// Restrained
-			// hasBoundary = true;
-		}
-
-		//Build headers
-		const keys = Object.keys(data.headers);
-		for (let i = 0; i < keys.length; i++) {
-			const key = keys[i];
-			const value: string | string[] = data.headers[key];
-			if (typeof value === 'undefined') {
-				continue; //Skip missing headers
-			} else if (typeof value === 'string') {
-				eml += key + ': ' + value.replace(/\r?\n/g, EOL + '  ') + EOL;
-			} else {
-				//Array
-				for (let j = 0; j < value.length; j++) {
-					eml += key + ': ' + value[j].replace(/\r?\n/g, EOL + '  ') + EOL;
-				}
-			}
-		}
-
-		if (data.multipartAlternative) {
-			eml += EOL;
-			eml += '--' + emlBoundary + EOL;
-			eml += 'Content-Type: ' + data.multipartAlternative['Content-Type'].replace(/\r?\n/g, EOL + '  ') + EOL;
-		}
-
-		//Start the body
-		eml += EOL;
-
-		//Plain text content
-		if (data.text) {
-			// Encode opened and self headers keeped
-			if (typeof options === 'object' && !!options && options.encode && data.textheaders) {
-				eml += '--' + boundary + EOL;
-				for (const key in data.textheaders) {
-					if (data.textheaders.hasOwnProperty(key)) {
-						eml += `${key}: ${data.textheaders[key].replace(/\r?\n/g, EOL + '  ')}`;
-					}
-				}
-			} else if (hasBoundary) {
-				// else Assembly
-				eml += '--' + (multipartBoundary ? multipartBoundary : boundary) + EOL;
-				eml += 'Content-Type: text/plain; charset="utf-8"' + EOL;
-			}
-			eml += EOL + data.text;
-			eml += EOL;
-		}
-
-		//HTML content
-		if (data.html) {
-			// Encode opened and self headers keeped
-			if (typeof options === 'object' && !!options && options.encode && data.textheaders) {
-				eml += '--' + boundary + EOL;
-				for (const key in data.textheaders) {
-					if (data.textheaders.hasOwnProperty(key)) {
-						eml += `${key}: ${data.textheaders[key].replace(/\r?\n/g, EOL + '  ')}`;
-					}
-				}
-			} else if (hasBoundary) {
-				eml += '--' + (multipartBoundary ? multipartBoundary : boundary) + EOL;
-				eml += 'Content-Type: text/html; charset="utf-8"' + EOL;
-			}
-			if (verbose) {
-				console.info(
-					`line 765 ${hasBoundary}, emlBoundary: ${emlBoundary}, multipartBoundary: ${multipartBoundary}, boundary: ${boundary}`
-				);
-			}
-			eml += EOL + data.html;
-			eml += EOL;
-		}
-
-		//Append attachments
-		if (data.attachments) {
-			for (let i = 0; i < data.attachments.length; i++) {
-				const attachment = data.attachments[i];
-				eml += '--' + boundary + EOL;
-				eml += 'Content-Type: ' + (attachment.contentType.replace(/\r?\n/g, EOL + '  ') || 'application/octet-stream') + EOL;
-				eml += 'Content-Transfer-Encoding: base64' + EOL;
-				eml +=
-					'Content-Disposition: ' +
-					(attachment.inline ? 'inline' : 'attachment') +
-					'; filename="' +
-					(attachment.filename || attachment.name || 'attachment_' + (i + 1)) +
-					'"' +
-					EOL;
-				if (attachment.cid) {
-					eml += 'Content-ID: <' + attachment.cid + '>' + EOL;
-				}
-				eml += EOL;
-				if (typeof attachment.data === 'string') {
-					const content = Base64.toBase64(attachment.data);
-					eml += wrap(content, 72) + EOL;
-				} else {
-					//Buffer
-					// Uint8Array to string by new TextEncoder
-					const content = decode(attachment.data);
-					eml += wrap(content, 72) + EOL;
-				}
-				eml += EOL;
-			}
-		}
-
-		//Finish the boundary
-		if (hasBoundary) {
-			eml += '--' + boundary + '--' + EOL;
-		}
-	} catch (e) {
-		error = e as string;
-	}
-	callback && callback(error, eml);
-	return error || eml;
-}
-
-/**
  * Parses EML file content and return user-friendly object.
  * @param {String | ParsedEmlJson} eml EML file content or object from 'parse'
  * @param { OptionOrNull | CallbackFn<ReadedEmlJson>} options EML parse options
@@ -780,10 +594,11 @@ function read(
 
 			const attachment = {} as Attachment;
 
-			const id = headers['Content-ID'] || headers['Content-Id'];
-			if (id) {
-				attachment.id = id;
-			}
+			const contentIdWithBrackets = headers["Content-ID"] || headers["Content-Id"];
+      const contentId = contentIdWithBrackets?.replace(/^<|>$/g, "");
+      if (contentId) {
+        attachment.contentId = contentId;
+      }
 
 			const NameContainer = ['Content-Disposition', 'Content-Type', 'Content-type'];
 
@@ -818,10 +633,10 @@ function read(
 			const cd = headers['Content-Disposition'];
 			if (cd) {
 				attachment.inline = /^\s*inline/g.test(cd);
+				const sizeRegexMatches = /size\s*=\s*([0-9]+)/gi.exec(cd);
+        attachment.size = parseInt(sizeRegexMatches?.[1] ?? "0");
 			}
 
-			attachment.data = content as Uint8Array;
-			attachment.data64 = decode(content as Uint8Array, charset);
 			result.attachments.push(attachment);
 		}
 	}
@@ -974,7 +789,6 @@ export {
 	BoundaryHeaders,
 	parse as parseEml,
 	read as readEml,
-	build as buildEml,
 	GB2312UTF8 as GBKUTF8,
 };
 
