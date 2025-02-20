@@ -594,11 +594,11 @@ function read(
 
 			const attachment = {} as Attachment;
 
-			const contentIdWithBrackets = headers["Content-ID"] || headers["Content-Id"];
-      const contentId = contentIdWithBrackets?.replace(/^<|>$/g, "");
-      if (contentId) {
-        attachment.contentId = contentId;
-      }
+			const contentIdWithBrackets = headers['Content-ID'] || headers['Content-Id'];
+			const contentId = contentIdWithBrackets?.replace(/^<|>$/g, '');
+			if (contentId) {
+				attachment.contentId = contentId;
+			}
 
 			const NameContainer = ['Content-Disposition', 'Content-Type', 'Content-type'];
 
@@ -634,7 +634,7 @@ function read(
 			if (cd) {
 				attachment.inline = /^\s*inline/g.test(cd);
 				const sizeRegexMatches = /size\s*=\s*([0-9]+)/gi.exec(cd);
-        attachment.size = parseInt(sizeRegexMatches?.[1] ?? "0");
+				attachment.size = parseInt(sizeRegexMatches?.[1] ?? '0');
 			}
 
 			result.attachments.push(attachment);
